@@ -1,0 +1,21 @@
+# The api.t98.dev block in /etc/caddy/Caddyfile, with jobgrindr routed beside
+# 1x1. jobgrindr owns /jobgrindr and everything under it; every other path
+# still goes to 1x1 exactly as before.
+api.t98.dev {
+	# Cloudflare Origin CA cert. Explicit, so Caddy never attempts ACME: the
+	# hostname is proxied, so an HTTP-01 challenge would hit Cloudflare, not us.
+	tls /etc/caddy/tls/origin.crt /etc/caddy/tls/origin.key
+
+	encode gzip
+
+	@jobgrindr path /jobgrindr /jobgrindr/*
+	handle @jobgrindr {
+		reverse_proxy 127.0.0.1:3001
+	}
+
+	# Default X-Forwarded-For handling is what we want: Cloudflare puts the real
+	# client at the head of the chain and Caddy appends its own peer.
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

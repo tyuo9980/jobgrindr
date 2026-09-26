@@ -1,0 +1,20 @@
+# /etc/systemd/system/jobgrindr.service
+[Unit]
+Description=jobgrindr job tracker
+After=network.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user/jobgrindr
+ExecStart=/usr/bin/node server/server.js
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=HOST=127.0.0.1
+# Outside the deploy directory, so a redeploy can never touch the data.
+Environment=DB_PATH=/home/ec2-user/jobgrindr-data/jobgrindr.db
+# GOOGLE_CLIENT_ID and ALLOWED_EMAILS; see deploy/jobgrindr.env.example.
+EnvironmentFile=/home/ec2-user/jobgrindr-data/jobgrindr.env
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
