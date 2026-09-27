@@ -16,8 +16,8 @@ Track job applications, interviews, and offers.
 ## Layout
 
 ```
-src/       React + TypeScript client (Vite), served at /jobgrindr/
-server/    Express + SQLite via node:sqlite; API at /jobgrindr/api
+src/       React + TypeScript client (Vite), on GitHub Pages at t98.dev/jobgrindr/
+server/    Express + SQLite via node:sqlite; API at api.t98.dev/jobgrindr/api
 deploy/    systemd unit, Caddy config and deploy script for the EC2 host
 ```
 
@@ -46,15 +46,27 @@ to exercise the real sign-in locally.
 | `DB_PATH` | `server/data/jobgrindr.db` | SQLite file |
 | `GOOGLE_CLIENT_ID` | unset | OAuth "Web application" client whose ID tokens are accepted; required when `NODE_ENV=production` |
 | `ALLOWED_EMAILS` | unset | comma-separated accounts allowed to sign in; unset allows any Google account |
+| `CORS_ORIGINS` | unset | comma-separated origins whose pages may call the API with credentials |
+| `APP_URL` | unset | where the client is hosted; page requests to this server redirect there |
 
 Signing in exchanges a Google ID token for a 30-day session cookie. Only a hash of the
 session token is stored. Every status and application belongs to one account.
 
 ## Deployment
 
-Runs on the same EC2 host as 1x1, behind the same Caddy and Cloudflare setup, at
-`https://api.t98.dev/jobgrindr/`. Caddy sends `/jobgrindr` and everything under it to
-port 3001 and everything else to 1x1 (see `deploy/Caddyfile`).
+**Client**: GitHub Pages. Every push to `main` that touches the client runs
+`.github/workflows/pages.yml`, which builds with
+`VITE_API_BASE=https://api.t98.dev/jobgrindr/api` and publishes `dist/`. The user site
+(tyuo9980.github.io) owns the `t98.dev` domain, so this repo is served at
+`https://t98.dev/jobgrindr/`. The repo's Pages source must be set to *GitHub Actions*.
+
+**API**: the same EC2 host as 1x1, behind the same Caddy and Cloudflare setup, at
+`https://api.t98.dev/jobgrindr/api`. Caddy sends `/jobgrindr` and everything under it to
+port 3001 and everything else to 1x1 (see `deploy/Caddyfile`). The page and the API are
+different origins but the same site, so the SameSite=Lax session cookie still flows;
+the server answers CORS only for `CORS_ORIGINS`.
+
+The OAuth client needs `https://t98.dev` as an authorized JavaScript origin.
 
 One-time setup on the host:
 
@@ -65,8 +77,9 @@ One-time setup on the host:
 3. update the `api.t98.dev` block in `/etc/caddy/Caddyfile` to match `deploy/Caddyfile`
    and `sudo systemctl reload caddy`
 
-Then, and for every release:
+Then, for every API release (deploy it before pushing a client that depends on it):
 
 ```sh
-deploy/deploy.sh        # builds, copies dist/ and server/ over ssh, restarts
+deploy/deploy.sh        # copies server/ over ssh, installs deps, restarts
 ```
+

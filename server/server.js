@@ -30,6 +30,18 @@ const ALLOWED_EMAILS = new Set(
     .filter(Boolean)
 );
 
+// Origins whose pages may call the API with the user's cookie. The client is
+// hosted on GitHub Pages at t98.dev, a different origin from this server.
+const CORS_ORIGINS = new Set(
+  (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
+// Where the client is hosted, when not by this server. Page requests here
+// are redirected to it.
+const APP_URL = (process.env.APP_URL || '').trim();
+
 const SESSION_COOKIE = 'jobgrindr_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -476,6 +488,27 @@ app.use((req, res, next) => {
 
 const api = express.Router();
 
+// Only the listed origins get CORS headers, so a page anywhere else can
+// neither read responses nor pass the preflight the X-Jobgrindr header needs.
+api.use((req, res, next) => {
+  const origin = req.get('origin');
+  res.vary('Origin');
+  if (!origin || !CORS_ORIGINS.has(origin)) return next();
+
+  res.set({
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+  });
+  if (req.method !== 'OPTIONS') return next();
+
+  res.set({
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Jobgrindr',
+    'Access-Control-Max-Age': '600',
+  });
+  res.status(204).end();
+});
+
 api.use(express.json({ limit: '100kb' }));
 
 // A header a cross-site form or image cannot send, and that a cross-site
@@ -581,9 +614,11 @@ api.use((req, res) => res.status(404).json({ error: 'not found' }));
 
 app.use(`${BASE_PATH}/api`, api);
 
-// The built client, when there is one. In development Vite serves it instead
-// and proxies the API here.
-if (fs.existsSync(path.join(CLIENT_DIR, 'index.html'))) {
+// The client is served from APP_URL in production (GitHub Pages), from the
+// local build when there is one, and by Vite in development.
+if (APP_URL) {
+  app.get([BASE_PATH || '/', `${BASE_PATH}/{*rest}`], (req, res) => res.redirect(301, APP_URL));
+} else if (fs.existsSync(path.join(CLIENT_DIR, 'index.html'))) {
   const sendIndex = (req, res) => {
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(CLIENT_DIR, 'index.html'));

@@ -6,7 +6,9 @@ export class ApiError extends Error {}
 /** The session is missing or expired; the app goes back to the sign-in screen. */
 export class SignedOutError extends ApiError {}
 
-const API_BASE = `${import.meta.env.BASE_URL}api`;
+// In production the client is on GitHub Pages (t98.dev) and the API on
+// api.t98.dev; in development Vite proxies the API on the same origin.
+const API_BASE = import.meta.env.VITE_API_BASE ?? `${import.meta.env.BASE_URL}api`;
 
 export async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   // The server refuses writes without this header; it is its CSRF check.
@@ -16,6 +18,9 @@ export async function request<T>(method: string, url: string, body?: unknown): P
   const res = await fetch(`${API_BASE}${url}`, {
     method,
     headers,
+    // The session cookie belongs to the API's host, which is a different
+    // origin from the page in production.
+    credentials: 'include',
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 204) return undefined as T;

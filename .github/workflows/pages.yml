@@ -1,0 +1,53 @@
+# Builds the client and publishes it to GitHub Pages. Because the user site
+# (tyuo9980.github.io) owns the t98.dev domain, this repo is served at
+# https://t98.dev/jobgrindr/. The API is separate, on api.t98.dev (deploy/).
+name: Deploy client to Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'server/**'
+      - 'deploy/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancel one halfway through.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_BASE: https://api.t98.dev/jobgrindr/api
+      # Pages has no rewrites: serve the app for any unknown path under
+      # /jobgrindr/ instead of GitHub's 404 page.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
