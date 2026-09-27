@@ -83,3 +83,7 @@ Then, for every API release (deploy it before pushing a client that depends on i
 deploy/deploy.sh        # copies server/ over ssh, installs deps, restarts
 ```
 
+## License
+
+[PolyForm Strict 1.0.0](LICENSE): free for personal and other noncommercial use. You
+may not distribute the software or make changes or new works based on it.
