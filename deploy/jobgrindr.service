@@ -6,7 +6,7 @@ After=network.target
 [Service]
 User=ec2-user
 WorkingDirectory=/home/ec2-user/jobgrindr
-ExecStart=/usr/bin/node server/server.js
+ExecStart=/usr/local/bin/node server/server.js
 Environment=NODE_ENV=production
 Environment=PORT=3001
 Environment=HOST=127.0.0.1
